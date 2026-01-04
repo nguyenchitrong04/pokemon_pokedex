@@ -6,7 +6,7 @@
     --foreground: #0f172a;
   }
 
-  /* Khi class "dark" được thêm vào thẻ html, các biến này sẽ thay đổi */
+  /* Khi class "dark" được thêm vào thẻ html */
   .dark {
     --background: #020617;
     --foreground: #f8fafc;
@@ -15,34 +15,56 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
-    transition: background-color 0.3s, color 0.3s;
+    /* Ép màu chữ mặc định để không bị trùng màu nền */
+    @apply text-slate-900 dark:text-white transition-colors duration-300;
+  }
+
+  /* Fix lỗi cho các thẻ tiêu đề và văn bản */
+  h1, h2, h3, h4, h5, h6, p, span, b, strong {
+    @apply transition-colors duration-300;
   }
 }
 
 @layer base {
   body {
-    /* Thay url bằng link ảnh rừng cây của bạn */
+    /* Ảnh nền rừng cây */
     background-image: url('https://i.ibb.co/N27xn9vH/DRd73IK.jpg');
-    @apply bg-fixed bg-cover bg-center min-h-screen;
+    @apply bg-fixed bg-cover bg-center min-h-screen antialiased;
   }
 }
 
+/* Glassmorphism: Tối ưu màu sắc để chữ luôn nổi bật */
 .glass-card {
-  @apply bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/20 shadow-2xl;
+  /* Ở mode sáng dùng trắng đục (với chữ đen), mode tối dùng slate đậm (với chữ trắng) */
+  @apply bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-2xl;
+  @apply text-slate-900 dark:text-white;
 }
 
+/* Fix lỗi cho các ô nhập liệu (Input) và danh sách (Select) - Rất quan trọng */
+input, select, textarea {
+  @apply bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white border-white/30 dark:border-slate-700;
+}
+
+/* Custom Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
   @apply bg-slate-400/30 rounded-full;
-
-.glass-tier-dark {
-  @apply bg-black/60 dark:bg-black/80 backdrop-blur-xl border border-white/10 shadow-2xl;
 }
 
-/* Hiệu ứng khi đang kéo để dễ nhận biết */
+/* Bảng Tier List (Dùng nền tối để Pokemon nổi bật) */
+.glass-tier-dark {
+  @apply bg-black/60 dark:bg-black/80 backdrop-blur-xl border border-white/10 shadow-2xl;
+  @apply text-white; /* Tier list thường dùng chữ trắng cho ngầu */
+}
+
+/* Hiệu ứng khi đang kéo */
 .dragging-item {
   @apply opacity-50 scale-110 rotate-3 ring-2 ring-indigo-500 z-[100];
 }
+
+/* Tiện ích bổ sung để sửa nhanh màu chữ */
+.text-contrast {
+  @apply text-slate-900 dark:text-white;
 }
