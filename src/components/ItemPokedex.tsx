@@ -1,20 +1,36 @@
 "use client";
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, X, Loader2, BookOpen, Users } from 'lucide-react';
 import { STATIC_ITEMS, ITEM_CATEGORIES, getItemSprite } from '@/lib/itemData';
 import { POKEMON_MACHINES_GEN9 } from '@/lib/machineData';
 import { TYPE_COLORS } from '@/lib/pokemonData';
 
+// --- FIX LỖI BUILD: Định nghĩa Interface rõ ràng ---
+interface ItemBase {
+  id: number | string;
+  name: string;
+  category: string;
+  effect: string;
+  isMachine?: boolean;
+  type?: string;
+  moveName?: string;
+}
+
 export default function ItemPokedex({ onSelectPokemon }: { onSelectPokemon: (p: any) => void }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all");
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedItem, setSelectedItem] = useState<ItemBase | null>(null);
   const [compatiblePoke, setCompatiblePoke] = useState<any[]>([]);
   const [fetchingDetails, setFetchingDetails] = useState(false);
 
+  // Gộp danh sách vật phẩm và TMs
   const allItems = useMemo(() => {
-    const machines = POKEMON_MACHINES_GEN9.map(m => ({ ...m, category: 'machine', isMachine: true }));
-    return [...STATIC_ITEMS, ...machines];
+    const machines = POKEMON_MACHINES_GEN9.map(m => ({ 
+      ...m, 
+      category: 'machine', 
+      isMachine: true 
+    })) as ItemBase[];
+    return [...(STATIC_ITEMS as ItemBase[]), ...machines];
   }, []);
 
   const filteredItems = allItems.filter(item => {
@@ -23,10 +39,7 @@ export default function ItemPokedex({ onSelectPokemon }: { onSelectPokemon: (p: 
     return matchesSearch && matchesCategory;
   });
 
-  // Hàm lấy ID Pokémon từ URL của PokeAPI
-  const getPokemonIdFromUrl = (url: string) => {
-    return url.split('/').filter(Boolean).pop();
-  };
+  const getPokemonIdFromUrl = (url: string) => url.split('/').filter(Boolean).pop();
 
   // Tra cứu Đá tiến hóa
   const fetchCompatibleByItem = async (itemName: string) => {
@@ -44,26 +57,22 @@ export default function ItemPokedex({ onSelectPokemon }: { onSelectPokemon: (p: 
     };
 
     const names = manualMap[itemName] || [];
-    // Fetch thông tin cơ bản cho các Pokémon trong list đá tiến hóa
     return Promise.all(names.map(async (n) => {
       const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${n}`);
       return res.json();
     }));
   };
 
-  const handleItemClick = async (item: any) => {
+  const handleItemClick = async (item: ItemBase) => {
     setSelectedItem(item);
     setCompatiblePoke([]);
     setFetchingDetails(true);
 
     try {
-      if (item.isMachine) {
-        // 1. Chỉ fetch 1 lần để lấy danh sách Pokémon học được move này
+      if (item.isMachine && item.moveName) {
         const res = await fetch(`https://pokeapi.co/api/v2/move/${item.moveName}`);
         const data = await res.json();
         
-        // 2. Thay vì fetch hàng trăm lần, ta map trực tiếp để lấy ID và tạo URL ảnh
-        // Điều này giúp Modal hiển thị ngay lập tức mà không bị giới hạn 50 con
         const pokes = data.learned_by_pokemon.map((p: any) => {
           const id = getPokemonIdFromUrl(p.url);
           return {
@@ -74,7 +83,6 @@ export default function ItemPokedex({ onSelectPokemon }: { onSelectPokemon: (p: 
             }
           };
         });
-        
         setCompatiblePoke(pokes);
       } else if (item.category === 'stone-evolution') {
         const pokes = await fetchCompatibleByItem(item.name);
@@ -87,22 +95,18 @@ export default function ItemPokedex({ onSelectPokemon }: { onSelectPokemon: (p: 
     }
   };
 
-  // Hàm xử lý khi click vào Pokémon trong danh sách tương thích
   const handleSelectPokemonWithFetch = async (p: any) => {
-    // Vì p hiện tại chỉ có thông tin cơ bản, ta cần fetch full data trước khi truyền ra ngoài (nếu cần)
     try {
       const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${p.name}`);
       const fullData = await res.json();
       onSelectPokemon(fullData);
       setSelectedItem(null);
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Search & Tabs Bar */}
+      {/* Search & Tabs */}
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-4 top-3.5 text-slate-400" size={20} />
@@ -129,31 +133,34 @@ export default function ItemPokedex({ onSelectPokemon }: { onSelectPokemon: (p: 
             className="bg-white dark:bg-slate-900 p-5 rounded-[2.5rem] border dark:border-slate-800 hover:shadow-2xl hover:scale-105 transition-all cursor-pointer group text-center">
             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-3xl mb-3 group-hover:bg-white dark:group-hover:bg-slate-800">
               <img 
+                // FIX LỖI DÒNG 132 TẠI ĐÂY: Sử dụng kiểm tra an toàn
                 src={item.isMachine ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-${item.type}.png` : getItemSprite(item.name)} 
                 className="w-12 h-12 mx-auto object-contain drop-shadow-md" 
                 alt={item.name} 
               />
             </div>
-            <p className="font-black uppercase italic tracking-tighter text-[10px] truncate">{item.name.replace(/-/g, ' ')}</p>
+            <p className="font-black uppercase italic tracking-tighter text-[10px] truncate dark:text-white">{item.name.replace(/-/g, ' ')}</p>
           </div>
         ))}
       </div>
 
-      {/* Full Modal Detail */}
+      {/* Modal Detail */}
       {selectedItem && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[3rem] p-8 relative max-h-[85vh] flex flex-col border dark:border-slate-800 shadow-2xl">
-            <button onClick={() => setSelectedItem(null)} className="absolute top-8 right-8 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors z-10"><X size={24}/></button>
+            <button onClick={() => setSelectedItem(null)} className="absolute top-8 right-8 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors z-10 dark:text-white"><X size={24}/></button>
             
             <div className="flex items-center gap-6 mb-6 border-b dark:border-slate-800 pb-6 shrink-0">
               <div className="p-6 bg-slate-50 dark:bg-slate-800 rounded-[2.5rem] shadow-inner">
                 <img src={selectedItem.isMachine ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-${selectedItem.type}.png` : getItemSprite(selectedItem.name)} className="w-20 h-20 object-contain drop-shadow-lg" alt={selectedItem.name} />
               </div>
               <div className="space-y-1">
-                <h3 className="text-3xl font-black uppercase italic tracking-tighter">{selectedItem.name.replace(/-/g, ' ')}</h3>
+                <h3 className="text-3xl font-black uppercase italic tracking-tighter dark:text-white">{selectedItem.name.replace(/-/g, ' ')}</h3>
                 <div className="flex gap-2">
                    <span className="bg-red-500 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase italic shadow-sm">{selectedItem.category}</span>
-                   {selectedItem.isMachine && <span className={`${TYPE_COLORS[selectedItem.type]} text-white text-[8px] font-black px-3 py-1 rounded-full uppercase italic shadow-sm`}>Hệ: {selectedItem.type}</span>}
+                   {selectedItem.isMachine && selectedItem.type && (
+                     <span className={`${TYPE_COLORS[selectedItem.type as keyof typeof TYPE_COLORS]} text-white text-[8px] font-black px-3 py-1 rounded-full uppercase italic shadow-sm`}>Hệ: {selectedItem.type}</span>
+                   )}
                 </div>
               </div>
             </div>
@@ -185,13 +192,13 @@ export default function ItemPokedex({ onSelectPokemon }: { onSelectPokemon: (p: 
                           alt={p.name}
                           onError={(e) => { (e.target as any).src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png' }}
                         />
-                        <p className="text-[7px] font-black uppercase mt-1 truncate tracking-tighter">{p.name.replace(/-/g, ' ')}</p>
+                        <p className="text-[7px] font-black uppercase mt-1 truncate tracking-tighter dark:text-white">{p.name.replace(/-/g, ' ')}</p>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-12 border-2 border-dashed rounded-[2rem] dark:border-slate-800 opacity-30">
-                    <p className="text-[10px] font-black uppercase italic">Vật phẩm này không dành cho Pokémon cụ thể</p>
+                    <p className="text-[10px] font-black uppercase italic dark:text-white">Vật phẩm này không dành cho Pokémon cụ thể</p>
                   </div>
                 )}
               </div>
